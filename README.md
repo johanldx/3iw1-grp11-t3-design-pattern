@@ -1,22 +1,55 @@
-# projet-design-pattern
+# FuelLog
 
-## Requirements
+Mini-framework TypeScript orienté DOM et application de démonstration pour le suivi des pleins de carburant.
 
+## Stack
+
+- TypeScript
+- Vite
 - Docker
 - Docker Compose
 
-## Development Server
+## Lancer le projet en développement
 
 ```bash
-docker compose up -d
-docker compose exec node npm install
-docker compose exec node npm run dev
+docker compose -f compose.dev.yaml up
 ```
 
-## Build the app
+Application disponible sur `http://localhost:5173`.
+
+## Construire et lancer la version de production
 
 ```bash
-docker compose up -d
-docker compose exec node npm install
-docker compose exec node npm run build
+npm install
+npm run build
+docker compose -f compose.yaml up --build
 ```
+
+Application disponible sur `http://localhost:8080`.
+
+## Scripts utiles
+
+```bash
+npm run dev
+npm run build
+npm run preview
+```
+
+## Structure
+
+```text
+src/
+├── bootstrap/
+├── components/
+├── core/
+├── router/
+├── views/
+├── app.ts
+└── main.ts
+```
+
+## Documentation
+
+- Sujet : `docs/sujet.pdf`
+- Cadrage du projet : `docs/project.md`
+- Répartition Johan / Swan : `docs/repartition-johan-swan.md`
