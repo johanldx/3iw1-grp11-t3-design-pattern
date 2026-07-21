@@ -1,0 +1,17 @@
+services:
+  fuel-log-dev:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      - "5173:5173"
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - .:/app
+      - fuel-log-node-modules:/app/node_modules
+    stdin_open: true
+    tty: true
+
+volumes:
+  fuel-log-node-modules:

@@ -1,11 +1,8 @@
 services:
-  node:
-    image: node:26.5.0-alpine3.24
-    user: node
-    working_dir: /home/node
-    tty: true
-    stdin_open: true
+  fuel-log:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - 5173:5173
-    volumes:
-      - .:/home/node
+      - "8080:80"
+    restart: unless-stopped
