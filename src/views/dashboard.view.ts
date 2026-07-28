@@ -1,108 +1,40 @@
 import { TagBuilder } from '../core/builder.ts';
 import { TagFactory } from '../core/factory.ts';
+import type { FillUp } from '../core/singleton.ts';
+import { CardComponent } from '../components/card.component.ts';
 
-/**
- * Construit la vue de tableau de bord de base.
- *
- * @param currentPath Route active affichée dans la vue.
- * @param currentTitle Titre courant reflété dans la démo.
- * @returns Élément HTML représentant la vue.
- */
-export const createDashboardView = (
-  _currentPath: string,
-  _currentTitle: string,
-): HTMLElement =>
-  new TagBuilder('section')
-    .withStyle('display', 'grid')
-    .withStyle('gap', '1rem')
-    .withChild(
-      TagFactory.toHtml('heading', {
-        level: 2,
-        text: 'Tableau de bord',
-        styles: {
-          margin: '0',
-          color: '#0f172a',
-          fontSize: '1.6rem',
-        },
-      }),
-    )
-    .withChild(
-      TagFactory.toHtml('p', {
-        text: 'Vue d accueil de l application. Cette base est prete a recevoir la logique metier et les ecrans definitifs.',
-        styles: {
-          margin: '0',
-          color: '#475569',
-          lineHeight: '1.6',
-        },
-      }),
-    )
-    .withChild(
-      new TagBuilder('div')
-        .withStyle('display', 'grid')
-        .withStyle('gap', '1rem')
-        .withStyle('grid-template-columns', 'repeat(auto-fit, minmax(240px, 1fr))')
-        .withChild(
-          new TagBuilder('article')
-            .withStyle('display', 'grid')
-            .withStyle('gap', '0.55rem')
-            .withStyle('padding', '1rem')
-            .withStyle('border-radius', '0.9rem')
-            .withStyle('background', '#f8fafc')
-            .withStyle('border', '1px solid #e2e8f0')
-            .withChild(
-              TagFactory.toHtml('heading', {
-                level: 3,
-                text: 'Structure en place',
-                styles: {
-                  margin: '0',
-                  color: '#0f172a',
-                  fontSize: '1rem',
-                },
-              }),
-            )
-            .withChild(
-              TagFactory.toHtml('p', {
-                text: 'Menu, routage client, store global, composants et reactivite sont deja poses proprement.',
-                styles: {
-                  margin: '0',
-                  color: '#475569',
-                  lineHeight: '1.6',
-                },
-              }),
-            )
-            .build(),
-        )
-        .withChild(
-          new TagBuilder('article')
-            .withStyle('display', 'grid')
-            .withStyle('gap', '0.55rem')
-            .withStyle('padding', '1rem')
-            .withStyle('border-radius', '0.9rem')
-            .withStyle('background', '#f8fafc')
-            .withStyle('border', '1px solid #e2e8f0')
-            .withChild(
-              TagFactory.toHtml('heading', {
-                level: 3,
-                text: 'Suite du projet',
-                styles: {
-                  margin: '0',
-                  color: '#0f172a',
-                  fontSize: '1rem',
-                },
-              }),
-            )
-            .withChild(
-              TagFactory.toHtml('p', {
-                text: 'Cette base est faite pour accueillir la vraie logique metier, la validation et les integrations sans repartir du shell.',
-                styles: {
-                  margin: '0',
-                  color: '#475569',
-                  lineHeight: '1.6',
-                },
-              }),
-            )
-            .build(),
-        )
-        .build(),
-    )
+const card = (title: string, value: string, detail: string): HTMLElement =>
+  new CardComponent({
+    slots: {
+      header: TagFactory.toHtml('span', { text: title, styles: { color: '#64748b', fontWeight: '700' } }),
+      body: [
+        TagFactory.toHtml('heading', { level: 3, text: value, styles: { margin: '.45rem 0', color: '#0f766e', fontSize: '1.5rem' } }),
+        TagFactory.toHtml('p', { text: detail, styles: { margin: '0', color: '#475569' } }),
+      ],
+    },
+  }).mount(document.createElement('div'));
+
+/** Calcule et affiche les indicateurs métier à partir des pleins. */
+export const createDashboardView = (fillUps: FillUp[]): HTMLElement => {
+  const ordered = [...fillUps].sort((a, b) => a.odometer - b.odometer);
+  const totalCost = ordered.reduce((sum, item) => sum + item.liters * item.pricePerLiter, 0);
+  const totalLiters = ordered.reduce((sum, item) => sum + item.liters, 0);
+  const distance = ordered.length > 1
+    ? ordered[ordered.length - 1].odometer - ordered[0].odometer
+    : 0;
+  const consumption = distance > 0 ? totalLiters / distance * 100 : 0;
+  const costPerKm = distance > 0 ? totalCost / distance : 0;
+  const grid = new TagBuilder('div')
+    .withStyle('display', 'grid').withStyle('gap', '1rem')
+    .withStyle('grid-template-columns', 'repeat(auto-fit,minmax(190px,1fr))')
+    .withChild(card('Pleins', String(ordered.length), 'Entrées enregistrées'))
+    .withChild(card('Dépense totale', `${totalCost.toFixed(2)} €`, `${totalLiters.toFixed(1)} litres achetés`))
+    .withChild(card('Consommation', `${consumption.toFixed(2)} L/100 km`, `${distance.toFixed(0)} km observés`))
+    .withChild(card('Coût kilométrique', `${costPerKm.toFixed(3)} €/km`, 'Calculé sur la période'))
     .build();
+  return new TagBuilder('section')
+    .withStyle('display', 'grid').withStyle('gap', '1rem')
+    .withChild(TagFactory.toHtml('heading', { level: 2, text: 'Tableau de bord', styles: { margin: '0', color: '#0f172a', fontSize: '1.6rem' } }))
+    .withChild(grid)
+    .build();
+};

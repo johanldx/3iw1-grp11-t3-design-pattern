@@ -5,6 +5,7 @@ import { Observable } from '../core/observer.ts';
 import { AppConfig, AppStore, type FillUpPayload } from '../core/singleton.ts';
 import { Router } from '../router/router.ts';
 import { TagFactory } from '../core/factory.ts';
+import { LocalStorageAdapter } from '../core/strategy.ts';
 
 const createDemoFillUp = (index: number): FillUpPayload => ({
   id: `fill-up-${index}`,
@@ -20,7 +21,7 @@ const configureApp = (): AppConfig => {
   appConfig.set('apiUrl', '/api/fuel-prices');
   appConfig.set('currency', 'EUR');
   appConfig.set('distanceUnit', 'km');
-  appConfig.set('defaultStorageStrategy', 'volatile');
+  appConfig.set('defaultStorageStrategy', 'localStorage');
   return appConfig;
 };
 
@@ -58,7 +59,7 @@ const createNavButton = (
  */
 export const startApp = (appRoot: HTMLDivElement): void => {
   const appConfig = configureApp();
-  const appStore = AppStore.getInstance();
+  const appStore = AppStore.getInstance(new LocalStorageAdapter());
   const observerFeed = new Observable<string>('Application initialisee.');
   const router = new Router(['/', '/history', '/fillups/new', '/fillups/:id/edit']);
   const shell = createAppShell({
@@ -117,7 +118,6 @@ export const startApp = (appRoot: HTMLDivElement): void => {
       router,
       observerFeed,
       routeViewHost: shell.routeViewHost,
-      createDemoFillUp,
     });
   };
 
@@ -150,7 +150,9 @@ export const startApp = (appRoot: HTMLDivElement): void => {
     shell.lifecycleEventNote.textContent = `${detail.component} mis a jour (${detail.updates}).`;
   });
 
-  appStore.subscribe(() => {
+  // Les changements du brouillon ne remontent pas toute la vue afin de préserver
+  // le focus et la position du curseur pendant la saisie.
+  appStore.subscribeKey('fillUps', () => {
     renderDashboard();
   });
 

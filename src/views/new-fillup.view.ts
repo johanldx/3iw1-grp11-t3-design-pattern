@@ -1,65 +1,26 @@
 import { TagBuilder } from '../core/builder.ts';
 import { TagFactory } from '../core/factory.ts';
+import { createFillUpForm } from '../components/fill-up-form.component.ts';
+import type { FillUpFormState, FillUpPayload } from '../core/singleton.ts';
+import { FuelPriceService } from '../http/fuel-price.service.ts';
 
-/**
- * Construit la vue minimale de création d'un plein.
- *
- * @param currentTitle Valeur courante du brouillon affichée dans la vue.
- * @param onCreate Callback déclenché lors de la création de la démo.
- * @returns Élément HTML représentant la vue.
- */
+/** Construit la vue de création d'un plein. */
 export const createNewFillUpView = (
-  _currentTitle: string,
-  onCreate: () => void,
+  draft: FillUpFormState,
+  minimumOdometer: number,
+  onDraftChange: (draft: FillUpFormState) => void,
+  onCreate: (payload: FillUpPayload) => void | Promise<void>,
 ): HTMLElement =>
   new TagBuilder('section')
-    .withStyle('display', 'grid')
-    .withStyle('gap', '1rem')
-    .withChild(
-      TagFactory.toHtml('heading', {
-        level: 2,
-        text: 'Nouveau plein',
-        styles: { margin: '0', color: '#0f172a', fontSize: '1.6rem' },
-      }),
-    )
-    .withChild(
-      TagFactory.toHtml('p', {
-        text: 'Espace reserve a la future creation d un plein.',
-        styles: {
-          margin: '0',
-          color: '#475569',
-          lineHeight: '1.6',
-        },
-      }),
-    )
-    .withChild(
-      TagFactory.toHtml('p', {
-        text: 'Pour la demo actuelle, le bouton ci-dessous ajoute une entree de test puis redirige vers l historique.',
-        styles: {
-          margin: '0',
-          color: '#64748b',
-          lineHeight: '1.6',
-        },
-      }),
-    )
-    .withChild(
-      TagFactory.toHtml('button', {
-        text: 'Creer une entree de demo',
-        styles: {
-          padding: '0.8rem 1rem',
-          border: 'none',
-          borderRadius: '0.9rem',
-          background: '#0f766e',
-          color: '#ffffff',
-          fontWeight: '700',
-          cursor: 'pointer',
-          width: 'fit-content',
-        },
-        events: {
-          click: () => {
-            onCreate();
-          },
-        },
-      }),
-    )
+    .withStyle('display', 'grid').withStyle('gap', '1rem')
+    .withChild(TagFactory.toHtml('heading', { level: 2, text: 'Nouveau plein', styles: { margin: '0', color: '#0f172a', fontSize: '1.6rem' } }))
+    .withChild(TagFactory.toHtml('p', { text: 'Enregistrez un plein. Les champs sont validés en temps réel.', styles: { margin: '0', color: '#475569' } }))
+    .withChild(createFillUpForm({
+      initial: draft,
+      minimumOdometer,
+      submitLabel: 'Enregistrer le plein',
+      onDraftChange,
+      onSubmit: onCreate,
+      fuelPriceService: new FuelPriceService(),
+    }))
     .build();

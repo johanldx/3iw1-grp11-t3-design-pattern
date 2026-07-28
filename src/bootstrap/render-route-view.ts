@@ -3,7 +3,7 @@ import { createEditFillUpView } from '../views/edit-fillup.view.ts';
 import { createHistoryView } from '../views/history.view.ts';
 import { createNewFillUpView } from '../views/new-fillup.view.ts';
 import { Observable } from '../core/observer.ts';
-import { AppStore, type FillUpPayload } from '../core/singleton.ts';
+import { AppStore } from '../core/singleton.ts';
 import { Router } from '../router/router.ts';
 
 interface RenderRouteViewOptions {
@@ -11,7 +11,6 @@ interface RenderRouteViewOptions {
   router: Router;
   observerFeed: Observable<string>;
   routeViewHost: HTMLDivElement;
-  createDemoFillUp: (index: number) => FillUpPayload;
 }
 
 /**
@@ -24,12 +23,9 @@ export const renderRouteView = ({
   router,
   observerFeed,
   routeViewHost,
-  createDemoFillUp,
 }: RenderRouteViewOptions): void => {
   const state = store.getSnapshot();
   const route = router.getCurrentMatch();
-  const currentTitle = state.formDraft.comment.trim() || 'FuelLog Builder Card';
-
   if (route.pattern === '/404') {
     observerFeed.next(`Route inconnue ${route.path} -> redirection vers /.`);
     router.replace('/');
@@ -37,7 +33,7 @@ export const renderRouteView = ({
   }
 
   if (route.pattern === '/') {
-    routeViewHost.replaceChildren(createDashboardView(route.path, currentTitle));
+    routeViewHost.replaceChildren(createDashboardView(state.fillUps));
     return;
   }
 
@@ -57,10 +53,16 @@ export const renderRouteView = ({
   }
 
   if (route.pattern === '/fillups/new') {
+    const maximumOdometer = state.fillUps.reduce(
+      (maximum, fillUp) => Math.max(maximum, fillUp.odometer),
+      0,
+    );
     routeViewHost.replaceChildren(
-      createNewFillUpView(currentTitle, () => {
-        const nextIndex = store.getState('fillUps').length;
-        void store.addFillUp(createDemoFillUp(nextIndex));
+      createNewFillUpView(state.formDraft, maximumOdometer, (draft) => {
+        void store.setFormDraft(draft);
+      }, async (payload) => {
+        await store.addFillUp(payload);
+        await store.dispatch('resetFormDraft', undefined);
         router.navigate('/history');
       }),
     );
@@ -79,11 +81,14 @@ export const renderRouteView = ({
     }
 
     routeViewHost.replaceChildren(
-      createEditFillUpView(target, route.path, route.params.id, {
-        onUpdate: () => {
-          void store.updateFillUp(route.params.id, {
-            comment: `${target.comment} (edite)`,
-          });
+      createEditFillUpView(target, {
+        onDraftChange: (draft) => {
+          void store.setFormDraft(draft);
+        },
+        onUpdate: async (payload) => {
+          await store.updateFillUp(route.params.id, payload);
+          await store.dispatch('resetFormDraft', undefined);
+          router.navigate('/history');
         },
         onBack: () => {
           router.replace('/history');

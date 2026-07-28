@@ -1,105 +1,24 @@
 import { TagBuilder } from '../core/builder.ts';
 import { TagFactory } from '../core/factory.ts';
-import type { FillUp } from '../core/singleton.ts';
+import { createFillUpForm } from '../components/fill-up-form.component.ts';
+import type { FillUp, FillUpFormState, FillUpPayload } from '../core/singleton.ts';
 
-/**
- * Regroupe les callbacks utilisés par la vue d'édition.
- */
 export interface EditFillUpViewHandlers {
-  onUpdate: () => void;
+  onDraftChange: (draft: FillUpFormState) => void;
+  onUpdate: (payload: FillUpPayload) => void | Promise<void>;
   onBack: () => void;
 }
 
-/**
- * Construit la vue minimale d'édition d'un plein.
- *
- * @param fillUp Plein à éditer.
- * @param currentPath Route active affichée dans la vue.
- * @param fillUpId Identifiant du plein édité.
- * @param handlers Callbacks associés aux actions de la vue.
- * @returns Élément HTML représentant la vue.
- */
-export const createEditFillUpView = (
-  fillUp: FillUp,
-  _currentPath: string,
-  _fillUpId: string,
-  handlers: EditFillUpViewHandlers,
-): HTMLElement =>
+/** Construit la vue d'édition préremplie. */
+export const createEditFillUpView = (fillUp: FillUp, handlers: EditFillUpViewHandlers): HTMLElement =>
   new TagBuilder('section')
-    .withStyle('display', 'grid')
-    .withStyle('gap', '1rem')
-    .withChild(
-      TagFactory.toHtml('heading', {
-        level: 2,
-        text: `Edition de ${fillUp.comment}`,
-        styles: { margin: '0', color: '#0f172a', fontSize: '1.6rem' },
-      }),
-    )
-    .withChild(
-      TagFactory.toHtml('p', {
-        text: 'Zone de travail pour modifier une entree existante.',
-        styles: {
-          margin: '0',
-          color: '#475569',
-          lineHeight: '1.6',
-        },
-      }),
-    )
-    .withChild(
-      TagFactory.toHtml('p', {
-        text: `${fillUp.date} • ${fillUp.odometer} km • ${fillUp.liters} L • ${fillUp.pricePerLiter.toFixed(2)} EUR/L`,
-        styles: {
-          margin: '0',
-          color: '#64748b',
-          lineHeight: '1.6',
-        },
-      }),
-    )
-    .withChild(
-      new TagBuilder('div')
-        .withStyle('display', 'flex')
-        .withStyle('gap', '0.65rem')
-        .withStyle('flex-wrap', 'wrap')
-        .withChild(
-          TagFactory.toHtml('button', {
-            text: 'Mettre a jour le commentaire',
-            styles: {
-              padding: '0.8rem 1rem',
-              border: 'none',
-              borderRadius: '0.9rem',
-              background: '#7c3aed',
-              color: '#ffffff',
-              fontWeight: '700',
-              cursor: 'pointer',
-              width: 'fit-content',
-            },
-            events: {
-              click: () => {
-                handlers.onUpdate();
-              },
-            },
-          }),
-        )
-        .withChild(
-          TagFactory.toHtml('button', {
-            text: 'Retour a l historique',
-            styles: {
-              padding: '0.8rem 1rem',
-              border: '1px solid #cbd5e1',
-              borderRadius: '0.9rem',
-              background: '#f8fafc',
-              color: '#0f172a',
-              fontWeight: '700',
-              cursor: 'pointer',
-              width: 'fit-content',
-            },
-            events: {
-              click: () => {
-                handlers.onBack();
-              },
-            },
-          }),
-        )
-        .build(),
-    )
+    .withStyle('display', 'grid').withStyle('gap', '1rem')
+    .withChild(TagFactory.toHtml('heading', { level: 2, text: `Édition de ${fillUp.comment || 'ce plein'}`, styles: { margin: '0', color: '#0f172a', fontSize: '1.6rem' } }))
+    .withChild(createFillUpForm({
+      initial: { date: fillUp.date, odometer: String(fillUp.odometer), liters: String(fillUp.liters), pricePerLiter: String(fillUp.pricePerLiter), comment: fillUp.comment },
+      submitLabel: 'Mettre à jour',
+      onDraftChange: handlers.onDraftChange,
+      onSubmit: handlers.onUpdate,
+      onCancel: handlers.onBack,
+    }))
     .build();

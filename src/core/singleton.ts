@@ -239,9 +239,7 @@ export class AppStore {
   static getInstance(strategy?: StorageStrategy): AppStore {
     if (!AppStore.instance) {
       AppStore.instance = new AppStore(strategy);
-    }
-
-    if (strategy) {
+    } else if (strategy) {
       void AppStore.instance.setStorageStrategy(strategy);
     }
 
