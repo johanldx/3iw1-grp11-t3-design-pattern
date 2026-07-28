@@ -15,6 +15,12 @@ const invalid = (message: string): ValidationResult => ({ valid: false, message 
 /** Refuse une valeur vide. */
 export class RequiredStrategy implements ValidationStrategy {
   private readonly message: string;
+
+  /**
+   * Initialise la stratégie de champ requis.
+   *
+   * @param message Message d'erreur affiché si la valeur est vide.
+   */
   constructor(message = 'Ce champ est obligatoire.') {
     this.message = message;
   }
@@ -36,6 +42,13 @@ export class NumericStrategy implements ValidationStrategy {
 export class MinStrategy implements ValidationStrategy {
   private readonly minimum: number;
   private readonly message?: string;
+
+  /**
+   * Initialise la stratégie de valeur minimale.
+   *
+   * @param minimum Valeur numérique plancher autorisée.
+   * @param message Message d'erreur personnalisé optionnel.
+   */
   constructor(minimum: number, message?: string) {
     this.minimum = minimum;
     this.message = message;
@@ -51,6 +64,13 @@ export class MinStrategy implements ValidationStrategy {
 export class PatternStrategy implements ValidationStrategy {
   private readonly pattern: RegExp;
   private readonly message: string;
+
+  /**
+   * Initialise la stratégie de validation par expression régulière.
+   *
+   * @param pattern Motif attendu.
+   * @param message Message d'erreur affiché en cas d'échec.
+   */
   constructor(pattern: RegExp, message: string) {
     this.pattern = pattern;
     this.message = message;

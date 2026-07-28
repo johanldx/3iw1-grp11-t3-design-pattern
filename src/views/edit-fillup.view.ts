@@ -1,9 +1,13 @@
 import { TagBuilder } from '../core/builder.ts';
 import { TagFactory } from '../core/factory.ts';
-import { createFillUpForm } from '../components/fill-up-form.component.ts';
+import { createFillUpForm, type FillUpDraftSource } from '../components/fill-up-form.component.ts';
 import type { FillUp, FillUpFormState, FillUpPayload } from '../core/singleton.ts';
 
+/**
+ * Décrit les callbacks exposés par la vue d'édition.
+ */
 export interface EditFillUpViewHandlers {
+  draftSource: FillUpDraftSource;
   onDraftChange: (draft: FillUpFormState) => void;
   onUpdate: (payload: FillUpPayload) => void | Promise<void>;
   onBack: () => void;
@@ -17,6 +21,7 @@ export const createEditFillUpView = (fillUp: FillUp, handlers: EditFillUpViewHan
     .withChild(createFillUpForm({
       initial: { date: fillUp.date, odometer: String(fillUp.odometer), liters: String(fillUp.liters), pricePerLiter: String(fillUp.pricePerLiter), comment: fillUp.comment },
       submitLabel: 'Mettre à jour',
+      draftSource: handlers.draftSource,
       onDraftChange: handlers.onDraftChange,
       onSubmit: handlers.onUpdate,
       onCancel: handlers.onBack,

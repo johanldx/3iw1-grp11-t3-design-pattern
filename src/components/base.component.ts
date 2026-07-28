@@ -1,3 +1,4 @@
+/** Fonction de nettoyage enregistrée pendant le cycle de vie d'un composant. */
 export type Cleanup = () => void;
 
 const cloneShallow = <T extends object>(value: T): T => {

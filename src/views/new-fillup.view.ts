@@ -1,6 +1,6 @@
 import { TagBuilder } from '../core/builder.ts';
 import { TagFactory } from '../core/factory.ts';
-import { createFillUpForm } from '../components/fill-up-form.component.ts';
+import { createFillUpForm, type FillUpDraftSource } from '../components/fill-up-form.component.ts';
 import type { FillUpFormState, FillUpPayload } from '../core/singleton.ts';
 import { FuelPriceService } from '../http/fuel-price.service.ts';
 
@@ -8,6 +8,7 @@ import { FuelPriceService } from '../http/fuel-price.service.ts';
 export const createNewFillUpView = (
   draft: FillUpFormState,
   minimumOdometer: number,
+  draftSource: FillUpDraftSource,
   onDraftChange: (draft: FillUpFormState) => void,
   onCreate: (payload: FillUpPayload) => void | Promise<void>,
 ): HTMLElement =>
@@ -19,6 +20,7 @@ export const createNewFillUpView = (
       initial: draft,
       minimumOdometer,
       submitLabel: 'Enregistrer le plein',
+      draftSource,
       onDraftChange,
       onSubmit: onCreate,
       fuelPriceService: new FuelPriceService(),

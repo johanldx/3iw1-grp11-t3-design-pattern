@@ -1,20 +1,10 @@
 import { createAppShell } from './app-shell.ts';
 import { renderRouteView } from './render-route-view.ts';
-import { bindText } from '../core/reactivity.ts';
 import { Observable } from '../core/observer.ts';
-import { AppConfig, AppStore, type FillUpPayload } from '../core/singleton.ts';
+import { AppConfig, AppStore } from '../core/singleton.ts';
 import { Router } from '../router/router.ts';
 import { TagFactory } from '../core/factory.ts';
 import { LocalStorageAdapter } from '../core/strategy.ts';
-
-const createDemoFillUp = (index: number): FillUpPayload => ({
-  id: `fill-up-${index}`,
-  date: `2026-07-${String(index + 1).padStart(2, '0')}`,
-  odometer: 12500 + index * 350,
-  liters: 12 + index,
-  pricePerLiter: 1.89,
-  comment: `Plein ${index + 1}`,
-});
 
 const configureApp = (): AppConfig => {
   const appConfig = AppConfig.getInstance();
@@ -58,22 +48,13 @@ const createNavButton = (
  * @param appRoot Élément racine dans lequel monter l'application.
  */
 export const startApp = (appRoot: HTMLDivElement): void => {
-  const appConfig = configureApp();
+  configureApp();
   const appStore = AppStore.getInstance(new LocalStorageAdapter());
   const observerFeed = new Observable<string>('Application initialisee.');
   const router = new Router(['/', '/history', '/fillups/new', '/fillups/:id/edit']);
   const shell = createAppShell({
     appRoot,
-    store: appStore,
-    router,
-    observerFeed,
   });
-
-  const mountLifecyclePanel = (): void => {
-    if (shell.lifecycleHost.childElementCount === 0) {
-      shell.lifecyclePanel.mount(shell.lifecycleHost);
-    }
-  };
 
   const renderNavigation = (): void => {
     const currentPath = router.getCurrentPath();
@@ -86,32 +67,7 @@ export const startApp = (appRoot: HTMLDivElement): void => {
   };
 
   const renderDashboard = (): void => {
-    const state = appStore.getSnapshot();
-    const config = appConfig.snapshot();
-    const currentTitle = state.formDraft.comment.trim() || 'Aucun';
-
-    shell.nameInput.value = state.formDraft.comment;
     renderNavigation();
-
-    shell.fillUpsCard.updateProps({
-      value: `${state.fillUps.length}`,
-      description: `Selection active : ${state.selectedFillUpId ?? 'aucune'}.`,
-    });
-
-    shell.configCard.updateProps({
-      value: `${config.currency} / ${config.distanceUnit}`,
-      description: `API ${config.apiUrl} - strategy ${config.defaultStorageStrategy}.`,
-    });
-
-    shell.formDraftCard.updateProps({
-      value: currentTitle,
-      description: 'Valeur synchronisee dans le store via setFormDraft().',
-    });
-
-    mountLifecyclePanel();
-    shell.lifecyclePanel.updateProps({
-      status: 'actif',
-    });
 
     renderRouteView({
       store: appStore,
@@ -121,70 +77,26 @@ export const startApp = (appRoot: HTMLDivElement): void => {
     });
   };
 
-  shell.nameInput.addEventListener('input', () => {
-    void appStore.setFormDraft({
-      comment: shell.nameInput.value,
-    });
-  });
+  const initialize = async (): Promise<void> => {
+    await appStore.loadFillUps();
 
-  shell.actionButton.addEventListener('click', () => {
-    const nextIndex = appStore.getState('fillUps').length;
-    void appStore.addFillUp(createDemoFillUp(nextIndex)).then((fillUp) => {
-      void appStore.selectFillUp(fillUp.id);
-      router.navigate('/history');
-    });
-  });
+    if (router.getCurrentMatch().pattern === '/404') {
+      router.replace('/');
+    }
 
-  shell.resetButton.addEventListener('click', () => {
-    void appStore.resetState();
-    router.navigate('/');
-  });
-
-  shell.lifecycleHost.addEventListener('component:mounted', (event) => {
-    const detail = (event as CustomEvent<{ component: string; mounts: number }>).detail;
-    shell.lifecycleEventNote.textContent = `${detail.component} monte (${detail.mounts}).`;
-  });
-
-  shell.lifecycleHost.addEventListener('component:updated', (event) => {
-    const detail = (event as CustomEvent<{ component: string; updates: number }>).detail;
-    shell.lifecycleEventNote.textContent = `${detail.component} mis a jour (${detail.updates}).`;
-  });
-
-  // Les changements du brouillon ne remontent pas toute la vue afin de préserver
-  // le focus et la position du curseur pendant la saisie.
-  appStore.subscribeKey('fillUps', () => {
     renderDashboard();
-  });
 
-  router.subscribe((path) => {
-    observerFeed.next(`Route active -> ${path}`);
-    renderDashboard();
-  });
+    // Les changements du brouillon ne doivent pas rerendre la vue courante
+    // pendant la saisie, sinon le focus peut être perdu selon le navigateur.
+    appStore.subscribeKey('fillUps', () => {
+      renderDashboard();
+    });
 
-  bindText(
-    {
-      subscribe: (callback: (value: string) => void) => router.subscribe(callback),
-    },
-    shell.routeBadge,
-    (path) => path,
-  );
+    router.subscribe((path) => {
+      observerFeed.next(`Route active -> ${path}`);
+      renderDashboard();
+    });
+  };
 
-  appStore.subscribeKey('fillUps', (fillUps) => {
-    observerFeed.next(`fillUps -> ${fillUps.length} entree(s).`);
-  });
-  appStore.subscribeKey('selectedFillUpId', (selectedFillUpId) => {
-    observerFeed.next(`selectedFillUpId -> ${selectedFillUpId ?? 'aucune'}.`);
-  });
-  appStore.subscribeKey('formDraft', (formDraft) => {
-    observerFeed.next(`formDraft.comment -> ${formDraft.comment.trim() || 'vide'}.`);
-  });
-
-  mountLifecyclePanel();
-  void appStore.loadFillUps();
-
-  if (router.getCurrentMatch().pattern === '/404') {
-    router.replace('/');
-  }
-
-  renderDashboard();
+  void initialize();
 };

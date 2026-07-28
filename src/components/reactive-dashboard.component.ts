@@ -1,5 +1,6 @@
 import { TagBuilder } from '../core/builder.ts';
 import { TagFactory } from '../core/factory.ts';
+import { calculateFuelMetrics } from '../core/fuel-metrics.ts';
 import { bindStyle, bindText, type Subscribable } from '../core/reactivity.ts';
 import {
   AppStore,
@@ -22,38 +23,6 @@ const toSubscribable = <T>(
 ): Subscribable<T> => ({
   subscribe,
 });
-
-const calculateTotalBudget = (fillUps: FillUp[]): number =>
-  fillUps.reduce((total, fillUp) => total + fillUp.liters * fillUp.pricePerLiter, 0);
-
-const calculateAverageConsumption = (fillUps: FillUp[]): number => {
-  if (fillUps.length < 2) {
-    return 0;
-  }
-
-  const orderedFillUps = [...fillUps].sort((left, right) => left.odometer - right.odometer);
-  let totalDistance = 0;
-  let totalLiters = 0;
-
-  for (let index = 1; index < orderedFillUps.length; index += 1) {
-    const previous = orderedFillUps[index - 1];
-    const current = orderedFillUps[index];
-    const distance = current.odometer - previous.odometer;
-
-    if (distance <= 0) {
-      continue;
-    }
-
-    totalDistance += distance;
-    totalLiters += current.liters;
-  }
-
-  if (totalDistance === 0) {
-    return 0;
-  }
-
-  return (totalLiters / totalDistance) * 100;
-};
 
 /**
  * Affiche un tableau de bord mis à jour directement par des observables liés au DOM.
@@ -193,12 +162,12 @@ export class ReactiveDashboardComponent extends Component<ReactiveDashboardProps
     this.registerCleanup(bindText(fillUps$, entryCount, (fillUps) => `${fillUps.length}`));
     this.registerCleanup(
       bindText(fillUps$, totalBudget, (fillUps) =>
-        `${calculateTotalBudget(fillUps).toFixed(2)} EUR`,
+        `${calculateFuelMetrics(fillUps).totalCost.toFixed(2)} EUR`,
       ),
     );
     this.registerCleanup(
       bindText(fillUps$, averageConsumption, (fillUps) =>
-        `${calculateAverageConsumption(fillUps).toFixed(2)} L/100`,
+        `${calculateFuelMetrics(fillUps).averageConsumption.toFixed(2)} L/100`,
       ),
     );
     this.registerCleanup(bindText(route$, activeRoute, (route) => route));
@@ -212,7 +181,7 @@ export class ReactiveDashboardComponent extends Component<ReactiveDashboardProps
     );
     this.registerCleanup(
       bindStyle(fillUps$, totalBudget, 'color', (fillUps) =>
-        calculateTotalBudget(fillUps) > 0 ? '#0f766e' : '#0f172a',
+        calculateFuelMetrics(fillUps).totalCost > 0 ? '#0f766e' : '#0f172a',
       ),
     );
     this.registerCleanup(

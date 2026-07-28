@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { TagBuilder } from '../src/core/builder.ts';
 import { TagFactory } from '../src/core/factory.ts';
 import { Observable } from '../src/core/observer.ts';
+import { bindStyle, bindText } from '../src/core/reactivity.ts';
 import { Component } from '../src/components/base.component.ts';
 import { CardComponent } from '../src/components/card.component.ts';
 
@@ -29,6 +30,12 @@ describe('framework DOM', () => {
     expect(button.classList.contains('action')).toBe(true);
     expect(image.alt).toBe('Icône');
     expect(image.width).toBe(24);
+  });
+
+  it('instancie aussi les tags via TagFactory.create', () => {
+    const tag = TagFactory.create('span', { text: 'Hello' });
+
+    expect(tag.toHtml().textContent).toBe('Hello');
   });
 
   it('notifie puis désabonne les observateurs', () => {
@@ -78,5 +85,24 @@ describe('framework DOM', () => {
     expect(host.querySelector('.card-slot-header')?.textContent).toBe('Titre');
     expect(host.querySelector('.card-slot-body')?.textContent).toBe('Corps');
     expect(host.querySelector('.card-slot-actions button')).toBe(action);
+  });
+
+  it('lie le texte et le style au DOM via la réactivité observable', () => {
+    const observable = new Observable(1);
+    const text = document.createTextNode('');
+    const element = document.createElement('p');
+
+    const unsubscribeText = bindText(observable, text, (value) => `Valeur ${value}`);
+    const unsubscribeStyle = bindStyle(observable, element, 'color', (value) =>
+      value > 1 ? 'green' : 'black',
+    );
+
+    observable.next(2);
+
+    expect(text.textContent).toBe('Valeur 2');
+    expect(element.style.color).toBe('green');
+
+    unsubscribeText();
+    unsubscribeStyle();
   });
 });

@@ -11,6 +11,9 @@ export interface CardSlots {
   actions?: SlotContent;
 }
 
+/**
+ * Décrit les propriétés publiques de la carte générique.
+ */
 export interface CardProps {
   slots: CardSlots;
   tone?: string;
@@ -26,6 +29,11 @@ const appendSlot = (host: HTMLElement, content: SlotContent): void => {
  * Les enfants sont fournis par le parent sans coupler la carte au métier.
  */
 export class CardComponent extends Component<CardProps> {
+  /**
+   * Initialise une carte générique composable.
+   *
+   * @param props Slots et teinte optionnelle de la carte.
+   */
   constructor(props: CardProps) {
     super(props, {});
   }

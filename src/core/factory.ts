@@ -70,6 +70,7 @@ export interface SpanTagOptions extends BaseTagOptions {}
  */
 export interface ParagraphTagOptions extends BaseTagOptions {}
 
+/** Types logiques de tags gérés par la factory HTML. */
 export type ElementType =
   | 'button'
   | 'div'
@@ -401,6 +402,9 @@ const tagRegistry: TagConstructorMap = {
   p: ParagraphTag,
 };
 
+/**
+ * Fabrique typée qui instancie les wrappers de tags et produit le HTML final.
+ */
 export class TagFactory {
   /**
    * Instancie le tag correspondant au type demandé.

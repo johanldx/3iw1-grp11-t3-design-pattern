@@ -1,7 +1,16 @@
 import type { FillUpFormState, FillUpPayload } from '../core/singleton.ts';
+import type { Subscribable } from '../core/reactivity.ts';
 import { MinStrategy, NumericStrategy, PatternStrategy, RequiredStrategy, validateWith, type ValidationStrategy } from '../core/validation.ts';
 import { FuelPriceService } from '../http/fuel-price.service.ts';
 
+/**
+ * Source observable utilisée pour refléter un brouillon externe dans le formulaire.
+ */
+export type FillUpDraftSource = Subscribable<FillUpFormState>;
+
+/**
+ * Décrit les dépendances du formulaire de plein.
+ */
 export interface FillUpFormOptions {
   initial: FillUpFormState;
   minimumOdometer?: number;
@@ -10,6 +19,7 @@ export interface FillUpFormOptions {
   onSubmit: (payload: FillUpPayload) => void | Promise<void>;
   onCancel?: () => void;
   fuelPriceService?: FuelPriceService;
+  draftSource?: FillUpDraftSource;
 }
 
 type FieldName = keyof FillUpFormState;
@@ -30,15 +40,28 @@ const rulesFor = (name: FieldName, minimumOdometer: number): readonly Validation
     : 'La valeur doit être supérieure à zéro.')];
 };
 
+const draftsMatch = (left: FillUpFormState, right: FillUpFormState): boolean =>
+  fields.every((field) => left[field.name] === right[field.name]);
+
 /** Construit un formulaire métier complet avec validation immédiate. */
 export const createFillUpForm = (options: FillUpFormOptions): HTMLFormElement => {
   const draft: FillUpFormState = { ...options.initial };
   const form = document.createElement('form');
   form.style.cssText = 'display:grid;gap:1rem;max-width:680px';
   const controls = new Map<FieldName, { input: HTMLInputElement; error: HTMLSpanElement }>();
-  const validateField = (name: FieldName): boolean => {
+  const touchedFields = new Set<FieldName>();
+  const deferredDraft = new Map<FieldName, string>();
+  const validateField = (name: FieldName, force = false): boolean => {
     const control = controls.get(name);
     if (!control) return true;
+
+    if (!force && !touchedFields.has(name)) {
+      control.error.textContent = '';
+      control.input.setAttribute('aria-invalid', 'false');
+      control.input.style.borderColor = '#cbd5e1';
+      return true;
+    }
+
     const result = validateWith(draft[name], rulesFor(name, options.minimumOdometer ?? 0));
     control.error.textContent = result.message;
     control.input.setAttribute('aria-invalid', String(!result.valid));
@@ -61,12 +84,52 @@ export const createFillUpForm = (options: FillUpFormOptions): HTMLFormElement =>
     input.addEventListener('input', () => {
       draft[field.name] = input.value;
       options.onDraftChange({ ...draft });
+      touchedFields.add(field.name);
       validateField(field.name);
     });
-    input.addEventListener('blur', () => validateField(field.name));
+    input.addEventListener('blur', () => {
+      if (deferredDraft.has(field.name)) {
+        const deferredValue = deferredDraft.get(field.name) ?? '';
+        deferredDraft.delete(field.name);
+        draft[field.name] = deferredValue;
+        input.value = deferredValue;
+      }
+
+      touchedFields.add(field.name);
+      validateField(field.name, true);
+    });
     controls.set(field.name, { input, error });
     label.append(input, error);
     form.append(label);
+  }
+
+  if (options.draftSource) {
+    options.draftSource.subscribe((nextDraft) => {
+      if (draftsMatch(draft, nextDraft)) {
+        return;
+      }
+
+      for (const field of fields) {
+        const control = controls.get(field.name);
+
+        draft[field.name] = nextDraft[field.name];
+
+        if (!control) {
+          continue;
+        }
+
+        if (document.activeElement === control.input) {
+          deferredDraft.set(field.name, nextDraft[field.name]);
+          continue;
+        }
+
+        if (control.input.value !== nextDraft[field.name]) {
+          control.input.value = nextDraft[field.name];
+        }
+
+        validateField(field.name);
+      }
+    });
   }
 
   if (options.fuelPriceService) {
@@ -118,9 +181,12 @@ export const createFillUpForm = (options: FillUpFormOptions): HTMLFormElement =>
           choose.addEventListener('click', () => {
             draft.pricePerLiter = String(price.price);
             const priceControl = controls.get('pricePerLiter');
-            if (priceControl) priceControl.input.value = draft.pricePerLiter;
+            if (priceControl) {
+              priceControl.input.value = draft.pricePerLiter;
+              touchedFields.add('pricePerLiter');
+            }
             options.onDraftChange({ ...draft });
-            validateField('pricePerLiter');
+            validateField('pricePerLiter', true);
             feedback.textContent = `Prix de ${price.price?.toFixed(3)} €/L sélectionné.`;
           });
           results.append(choose);
@@ -153,7 +219,12 @@ export const createFillUpForm = (options: FillUpFormOptions): HTMLFormElement =>
   form.append(actions);
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    if (!fields.every((field) => validateField(field.name))) return;
+
+    for (const field of fields) {
+      touchedFields.add(field.name);
+    }
+
+    if (!fields.every((field) => validateField(field.name, true))) return;
     void options.onSubmit({
       date: draft.date,
       odometer: Number(draft.odometer),

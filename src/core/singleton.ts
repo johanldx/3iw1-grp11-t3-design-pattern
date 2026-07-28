@@ -60,6 +60,7 @@ export interface AppConfigValues {
   defaultStorageStrategy: StorageStrategyName;
 }
 
+/** Clés configurables exposées par le singleton de configuration. */
 export type AppConfigKey = keyof AppConfigValues;
 
 type StateSubscriber = (state: Readonly<AppState>) => void;
@@ -76,6 +77,7 @@ type ActionPayloadMap = {
   resetState: undefined;
 };
 
+/** Actions internes exposées par le store global de l'application. */
 export type AppAction = keyof ActionPayloadMap;
 
 const APP_STATE_STORAGE_KEY = 'fuel-log:app-state';
@@ -303,11 +305,12 @@ export class AppStore {
    * @returns Promesse résolue une fois l'état persisté.
    */
   async setState<K extends keyof AppState>(key: K, value: AppState[K]): Promise<void> {
+    const previousState = this.state;
     this.state = {
       ...this.state,
       [key]: value,
     };
-    this.emitState();
+    this.emitState(previousState);
     await this.persistState();
   }
 
@@ -318,6 +321,7 @@ export class AppStore {
    * @returns Promesse résolue une fois l'état persisté.
    */
   async patchState(patch: Partial<AppState>): Promise<void> {
+    const previousState = this.state;
     this.state = {
       ...this.state,
       ...patch,
@@ -328,7 +332,7 @@ export class AppStore {
           }
         : this.state.formDraft,
     };
-    this.emitState();
+    this.emitState(previousState);
     await this.persistState();
   }
 
@@ -343,9 +347,10 @@ export class AppStore {
     action: K,
     payload: ActionPayloadMap[K],
   ): Promise<void> {
+    const previousState = this.state;
     const nextState = this.actions[action](payload);
     this.state = nextState;
-    this.emitState();
+    this.emitState(previousState);
     await this.persistState();
   }
 
@@ -482,14 +487,29 @@ export class AppStore {
     await this.dispatch('resetState', undefined);
   }
 
-  private emitState(): void {
+  private emitState(previousState?: AppState): void {
     const snapshot = this.getSnapshot();
     this.state$.next(snapshot);
-    this.keyObservables.fillUps.next(snapshot.fillUps);
-    this.keyObservables.selectedFillUpId.next(snapshot.selectedFillUpId);
-    this.keyObservables.formDraft.next(snapshot.formDraft);
-    this.keyObservables.loading.next(snapshot.loading);
-    this.keyObservables.error.next(snapshot.error);
+
+    if (!previousState || previousState.fillUps !== this.state.fillUps) {
+      this.keyObservables.fillUps.next(snapshot.fillUps);
+    }
+
+    if (!previousState || previousState.selectedFillUpId !== this.state.selectedFillUpId) {
+      this.keyObservables.selectedFillUpId.next(snapshot.selectedFillUpId);
+    }
+
+    if (!previousState || previousState.formDraft !== this.state.formDraft) {
+      this.keyObservables.formDraft.next(snapshot.formDraft);
+    }
+
+    if (!previousState || previousState.loading !== this.state.loading) {
+      this.keyObservables.loading.next(snapshot.loading);
+    }
+
+    if (!previousState || previousState.error !== this.state.error) {
+      this.keyObservables.error.next(snapshot.error);
+    }
   }
 
   private async persistState(): Promise<void> {

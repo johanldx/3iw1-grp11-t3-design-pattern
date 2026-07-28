@@ -1,5 +1,6 @@
 import { TagBuilder } from '../core/builder.ts';
 import { TagFactory } from '../core/factory.ts';
+import { calculateFuelMetrics } from '../core/fuel-metrics.ts';
 import type { FillUp } from '../core/singleton.ts';
 import { CardComponent } from '../components/card.component.ts';
 
@@ -16,21 +17,14 @@ const card = (title: string, value: string, detail: string): HTMLElement =>
 
 /** Calcule et affiche les indicateurs métier à partir des pleins. */
 export const createDashboardView = (fillUps: FillUp[]): HTMLElement => {
-  const ordered = [...fillUps].sort((a, b) => a.odometer - b.odometer);
-  const totalCost = ordered.reduce((sum, item) => sum + item.liters * item.pricePerLiter, 0);
-  const totalLiters = ordered.reduce((sum, item) => sum + item.liters, 0);
-  const distance = ordered.length > 1
-    ? ordered[ordered.length - 1].odometer - ordered[0].odometer
-    : 0;
-  const consumption = distance > 0 ? totalLiters / distance * 100 : 0;
-  const costPerKm = distance > 0 ? totalCost / distance : 0;
+  const metrics = calculateFuelMetrics(fillUps);
   const grid = new TagBuilder('div')
     .withStyle('display', 'grid').withStyle('gap', '1rem')
     .withStyle('grid-template-columns', 'repeat(auto-fit,minmax(190px,1fr))')
-    .withChild(card('Pleins', String(ordered.length), 'Entrées enregistrées'))
-    .withChild(card('Dépense totale', `${totalCost.toFixed(2)} €`, `${totalLiters.toFixed(1)} litres achetés`))
-    .withChild(card('Consommation', `${consumption.toFixed(2)} L/100 km`, `${distance.toFixed(0)} km observés`))
-    .withChild(card('Coût kilométrique', `${costPerKm.toFixed(3)} €/km`, 'Calculé sur la période'))
+    .withChild(card('Pleins', String(metrics.orderedFillUps.length), 'Entrées enregistrées'))
+    .withChild(card('Dépense totale', `${metrics.totalCost.toFixed(2)} €`, `${metrics.totalLiters.toFixed(1)} litres achetés`))
+    .withChild(card('Consommation', `${metrics.averageConsumption.toFixed(2)} L/100 km`, `${metrics.measuredDistance.toFixed(0)} km observés`))
+    .withChild(card('Coût kilométrique', `${metrics.costPerKm.toFixed(3)} €/km`, 'Calculé sur la distance mesurée'))
     .build();
   return new TagBuilder('section')
     .withStyle('display', 'grid').withStyle('gap', '1rem')

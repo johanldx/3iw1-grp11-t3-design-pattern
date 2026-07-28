@@ -13,6 +13,9 @@ interface RenderRouteViewOptions {
   routeViewHost: HTMLDivElement;
 }
 
+const isDraftEmpty = (draft: ReturnType<AppStore['getSnapshot']>['formDraft']): boolean =>
+  Object.values(draft).every((value) => value.trim() === '');
+
 /**
  * Rend la vue correspondant à la route courante dans le conteneur fourni.
  *
@@ -26,6 +29,11 @@ export const renderRouteView = ({
 }: RenderRouteViewOptions): void => {
   const state = store.getSnapshot();
   const route = router.getCurrentMatch();
+  const draftSource = {
+    subscribe: (callback: (draft: typeof state.formDraft) => void) =>
+      store.subscribeKey('formDraft', callback),
+  };
+
   if (route.pattern === '/404') {
     observerFeed.next(`Route inconnue ${route.path} -> redirection vers /.`);
     router.replace('/');
@@ -41,6 +49,18 @@ export const renderRouteView = ({
     routeViewHost.replaceChildren(
       createHistoryView(state.fillUps, {
         onEdit: (fillUpId) => {
+          const targetFillUp = state.fillUps.find((fillUp) => fillUp.id === fillUpId);
+
+          if (targetFillUp) {
+            void store.setFormDraft({
+              date: targetFillUp.date,
+              odometer: String(targetFillUp.odometer),
+              liters: String(targetFillUp.liters),
+              pricePerLiter: String(targetFillUp.pricePerLiter),
+              comment: targetFillUp.comment,
+            });
+          }
+
           void store.selectFillUp(fillUpId);
           router.navigate(`/fillups/${fillUpId}/edit`);
         },
@@ -58,7 +78,7 @@ export const renderRouteView = ({
       0,
     );
     routeViewHost.replaceChildren(
-      createNewFillUpView(state.formDraft, maximumOdometer, (draft) => {
+      createNewFillUpView(state.formDraft, maximumOdometer, draftSource, (draft) => {
         void store.setFormDraft(draft);
       }, async (payload) => {
         await store.addFillUp(payload);
@@ -80,8 +100,19 @@ export const renderRouteView = ({
       return;
     }
 
+    if (state.selectedFillUpId !== route.params.id || isDraftEmpty(state.formDraft)) {
+      void store.setFormDraft({
+        date: target.date,
+        odometer: String(target.odometer),
+        liters: String(target.liters),
+        pricePerLiter: String(target.pricePerLiter),
+        comment: target.comment,
+      });
+    }
+
     routeViewHost.replaceChildren(
       createEditFillUpView(target, {
+        draftSource,
         onDraftChange: (draft) => {
           void store.setFormDraft(draft);
         },
@@ -90,7 +121,8 @@ export const renderRouteView = ({
           await store.dispatch('resetFormDraft', undefined);
           router.navigate('/history');
         },
-        onBack: () => {
+        onBack: async () => {
+          await store.dispatch('resetFormDraft', undefined);
           router.replace('/history');
         },
       }),

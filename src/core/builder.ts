@@ -1,3 +1,4 @@
+/** Type de gestionnaire d'événement accepté par le builder de tags. */
 export type TagEventHandler = EventListenerOrEventListenerObject;
 
 /**

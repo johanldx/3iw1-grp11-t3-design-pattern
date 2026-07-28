@@ -1,4 +1,7 @@
+/** Signature d'une fonction abonnée à un observable typé. */
 export type ObserverCallback<T> = (value: T) => void;
+
+/** Fonction retournée pour retirer un abonnement. */
 export type Unsubscribe = () => void;
 
 /**

@@ -1,3 +1,4 @@
+/** Noms des stratégies de stockage supportées par l'application. */
 export type StorageStrategyName = 'volatile' | 'localStorage' | 'indexedDb';
 
 /**
@@ -59,6 +60,11 @@ export class VolatileStorage implements StorageStrategy {
 export class LocalStorageAdapter implements StorageStrategy {
   private readonly storage: Storage;
 
+  /**
+   * Initialise l'adaptateur `localStorage`.
+   *
+   * @param storage Implémentation de stockage Web injectable.
+   */
   constructor(storage: Storage = window.localStorage) {
     this.storage = storage;
   }
@@ -86,6 +92,12 @@ export class IndexedDBStorage implements StorageStrategy {
   private readonly database: Promise<IDBDatabase>;
   private readonly storeName: string;
 
+  /**
+   * Initialise le stockage IndexedDB avec sa base et son object store.
+   *
+   * @param databaseName Nom de la base IndexedDB à ouvrir.
+   * @param storeName Nom de l'object store utilisé pour les couples clé/valeur.
+   */
   constructor(
     databaseName = 'fuel-log',
     storeName = 'key-value',
